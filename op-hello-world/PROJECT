@@ -6,6 +6,8 @@ cliVersion: 4.7.1
 domain: example.com
 layout:
 - go.kubebuilder.io/v4
+plugins:
+  helm.kubebuilder.io/v1-alpha: {}
 projectName: op-hello-world
 repo: github.com/example/op-hello-world
 resources:

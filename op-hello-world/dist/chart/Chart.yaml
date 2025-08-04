@@ -1,0 +1,16 @@
+apiVersion: v2
+name: op-hello-world
+description: A Helm chart for the HelloWorld Kubernetes operator
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+home: https://github.com/j7m4/op-bed/op-hello-world
+sources:
+  - https://github.com/j7m4/op-bed
+maintainers:
+  - name: j7m4
+    url: https://github.com/j7m4
+keywords:
+  - operator
+  - helloworld
+  - kubernetes
