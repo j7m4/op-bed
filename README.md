@@ -51,3 +51,95 @@ op-bed/
 ```
 
 Each operator directory contains its own Kubebuilder-generated structure with controllers, APIs, and configuration files.
+
+## Observability Stack (Grafana LGTM + Alloy)
+
+This project includes a complete observability stack using Grafana LGTM (Loki, Grafana, Tempo, Mimir) and Alloy for telemetry collection.
+
+### Components
+
+- **Grafana** (port 3000): Unified observability UI with pre-configured datasources
+- **Loki** (port 3100): Log aggregation system
+- **Tempo** (ports 3200, 4317, 4318): Distributed tracing with OTLP support
+- **Mimir** (port 9009): Prometheus-compatible metrics storage
+- **Pyroscope** (port 4040): Continuous profiling platform
+- **Alloy** (port 12345): Telemetry collector and forwarder
+
+### Running the Stack
+
+1. Start the Kind cluster:
+   ```bash
+   ./setup.sh
+   ```
+
+2. Deploy the observability stack using Tilt:
+   ```bash
+   tilt up
+   ```
+
+3. Access Grafana UI at http://localhost:3000 (anonymous access enabled)
+
+### Integration Requirements
+
+#### For Metrics Collection
+- Applications exposing Prometheus metrics will be automatically discovered and scraped by Alloy
+- Metrics are forwarded to Mimir and available in Grafana
+
+#### For Tracing (OTLP)
+- Send traces to Alloy's OTLP endpoints:
+  - gRPC: `localhost:14317`
+  - HTTP: `localhost:14318`
+- Traces are forwarded to Tempo and available in Grafana
+
+#### For Logging
+- Send logs to Alloy's OTLP endpoints (same as tracing)
+- Logs are forwarded to Loki and available in Grafana
+
+#### For Continuous Profiling
+- Applications must expose pprof endpoints (typically on `/debug/pprof/*`)
+- Add these annotations to your pods to enable profiling:
+  ```yaml
+  metadata:
+    annotations:
+      pyroscope.io/scrape: "true"
+      pyroscope.io/port: "6060"  # Port where pprof endpoints are exposed
+  ```
+- Profiles are forwarded to Pyroscope and available at http://localhost:4040
+
+### Example Integration
+
+For a Go application with pprof enabled:
+
+```go
+import _ "net/http/pprof"
+
+func main() {
+    // Start pprof server
+    go func() {
+        log.Println(http.ListenAndServe("localhost:6060", nil))
+    }()
+    
+    // Your application code...
+}
+```
+
+Then annotate your Kubernetes deployment:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-app
+spec:
+  template:
+    metadata:
+      annotations:
+        pyroscope.io/scrape: "true"
+        pyroscope.io/port: "6060"
+    spec:
+      containers:
+      - name: my-app
+        ports:
+        - containerPort: 6060
+          name: pprof
+```

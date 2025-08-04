@@ -1,0 +1,142 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alloy-config
+  namespace: default
+data:
+  config.alloy: |
+    // OpenTelemetry Receiver
+    otelcol.receiver.otlp "default" {
+      grpc {
+        endpoint = "0.0.0.0:4317"
+      }
+      
+      http {
+        endpoint = "0.0.0.0:4318"
+      }
+      
+      output {
+        metrics = [otelcol.processor.batch.default.input]
+        logs    = [otelcol.processor.batch.default.input]
+        traces  = [otelcol.processor.batch.default.input]
+      }
+    }
+    
+    // Batch processor
+    otelcol.processor.batch "default" {
+      output {
+        metrics = [otelcol.exporter.prometheus.default.input]
+        logs    = [otelcol.exporter.loki.default.input]
+        traces  = [otelcol.exporter.otlp.tempo.input]
+      }
+    }
+    
+    // Prometheus exporter for metrics
+    otelcol.exporter.prometheus "default" {
+      forward_to = [prometheus.remote_write.mimir.receiver]
+    }
+    
+    // Remote write to Mimir
+    prometheus.remote_write "mimir" {
+      endpoint {
+        url = "http://mimir:9009/api/v1/push"
+      }
+    }
+    
+    // Loki exporter for logs
+    otelcol.exporter.loki "default" {
+      forward_to = [loki.write.default.receiver]
+    }
+    
+    // Write to Loki
+    loki.write "default" {
+      endpoint {
+        url = "http://loki:3100/loki/api/v1/push"
+      }
+    }
+    
+    // Tempo exporter for traces
+    otelcol.exporter.otlp "tempo" {
+      client {
+        endpoint = "tempo:4317"
+        tls {
+          insecure = true
+        }
+      }
+    }
+    
+    // Kubernetes Service Discovery
+    discovery.kubernetes "pods" {
+      role = "pod"
+    }
+    
+    // Scrape Prometheus metrics from pods
+    prometheus.scrape "kubernetes_pods" {
+      targets    = discovery.kubernetes.pods.targets
+      forward_to = [prometheus.remote_write.mimir.receiver]
+      
+      scrape_interval = "15s"
+    }
+    
+    // Filter pods that have pprof annotation
+    discovery.relabel "pprof_pods" {
+      targets = discovery.kubernetes.pods.targets
+      
+      // Only keep pods with the annotation "pyroscope.io/scrape=true"
+      rule {
+        source_labels = ["__meta_kubernetes_pod_annotation_pyroscope_io_scrape"]
+        regex = "true"
+        action = "keep"
+      }
+      
+      // Set the service name from pod labels
+      rule {
+        source_labels = ["__meta_kubernetes_namespace", "__meta_kubernetes_pod_name"]
+        separator = "/"
+        target_label = "service_name"
+      }
+      
+      // Use the port from annotation if specified
+      rule {
+        source_labels = ["__meta_kubernetes_pod_annotation_pyroscope_io_port"]
+        target_label = "__address__"
+        regex = "(.+)"
+        replacement = "${__meta_kubernetes_pod_ip}:${1}"
+      }
+    }
+    
+    // Pyroscope scraping for pprof endpoints
+    pyroscope.scrape "pprof_scrape" {
+      targets = discovery.relabel.pprof_pods.output
+      forward_to = [pyroscope.write.default.receiver]
+      
+      profiling_config {
+        profile.process_cpu {
+          enabled = true
+          path = "/debug/pprof/profile"
+        }
+        profile.godeltaprof_mutex {
+          enabled = true
+          path = "/debug/pprof/mutex"
+        }
+        profile.memory {
+          enabled = true
+          path = "/debug/pprof/heap"
+        }
+        profile.godeltaprof_block {
+          enabled = true
+          path = "/debug/pprof/block"
+        }
+        profile.goroutine {
+          enabled = true
+          path = "/debug/pprof/goroutine"
+        }
+      }
+    }
+    
+    // Write to Pyroscope
+    pyroscope.write "default" {
+      endpoint {
+        url = "http://pyroscope:4040"
+      }
+    }
