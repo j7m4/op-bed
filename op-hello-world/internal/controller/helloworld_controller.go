@@ -18,10 +18,17 @@ package controller
 
 import (
 	"context"
+	"fmt"
 
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
 	appsv1 "github.com/example/op-hello-world/api/v1"
@@ -36,6 +43,7 @@ type HelloWorldReconciler struct {
 // +kubebuilder:rbac:groups=apps.example.com,resources=helloworlds,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=apps.example.com,resources=helloworlds/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=apps.example.com,resources=helloworlds/finalizers,verbs=update
+// +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -47,9 +55,54 @@ type HelloWorldReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.21.0/pkg/reconcile
 func (r *HelloWorldReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = logf.FromContext(ctx)
+	log := logf.FromContext(ctx)
 
-	// TODO(user): your logic here
+	///////////////////////////////
+	// Custom code start
+	// This section handles the reconciliation logic for HelloWorld resources
+
+	// Fetch the HelloWorld instance
+	helloworld := &appsv1.HelloWorld{}
+	err := r.Get(ctx, req.NamespacedName, helloworld)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			log.Info("HelloWorld resource not found. Ignoring since object must be deleted")
+			return ctrl.Result{}, nil
+		}
+		log.Error(err, "Failed to get HelloWorld")
+		return ctrl.Result{}, err
+	}
+
+	// Define the desired pod for this HelloWorld resource
+	pod := r.podForHelloWorld(helloworld)
+
+	// Set HelloWorld instance as the owner and controller
+	if err := controllerutil.SetControllerReference(helloworld, pod, r.Scheme); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	// Check if the pod already exists, if not create a new one
+	found := &corev1.Pod{}
+	err = r.Get(ctx, types.NamespacedName{Name: pod.Name, Namespace: pod.Namespace}, found)
+	if err != nil && errors.IsNotFound(err) {
+		log.Info("Creating a new Pod", "Pod.Namespace", pod.Namespace, "Pod.Name", pod.Name)
+		err = r.Create(ctx, pod)
+		if err != nil {
+			log.Error(err, "Failed to create new Pod", "Pod.Namespace", pod.Namespace, "Pod.Name", pod.Name)
+			return ctrl.Result{}, err
+		}
+		// Pod created successfully - return and requeue
+		return ctrl.Result{Requeue: true}, nil
+	} else if err != nil {
+		log.Error(err, "Failed to get Pod")
+		return ctrl.Result{}, err
+	}
+
+	// Pod already exists - don't update, just log
+	log.Info("Skip reconcile: Pod already exists", "Pod.Namespace", found.Namespace, "Pod.Name", found.Name)
+
+	// Custom code end
+	///////////////////////////////
 
 	return ctrl.Result{}, nil
 }
@@ -61,3 +114,44 @@ func (r *HelloWorldReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Named("helloworld").
 		Complete(r)
 }
+
+///////////////////////////////
+// Custom code start
+// Helper functions for the HelloWorld controller
+
+// podForHelloWorld returns a busybox pod with the same name/namespace as the HelloWorld CR
+func (r *HelloWorldReconciler) podForHelloWorld(helloworld *appsv1.HelloWorld) *corev1.Pod {
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      helloworld.Name + "-pod",
+			Namespace: helloworld.Namespace,
+			Labels: map[string]string{
+				"app":        "helloworld",
+				"helloworld": helloworld.Name,
+			},
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{{
+				Name:    "busybox",
+				Image:   "busybox:latest",
+				Command: []string{"sh", "-c"},
+				Args:    []string{fmt.Sprintf("echo '%s' && sleep 3600", helloworld.Spec.Message)},
+				Resources: corev1.ResourceRequirements{
+					Requests: corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("50m"),
+						corev1.ResourceMemory: resource.MustParse("64Mi"),
+					},
+					Limits: corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("100m"),
+						corev1.ResourceMemory: resource.MustParse("128Mi"),
+					},
+				},
+			}},
+			RestartPolicy: corev1.RestartPolicyAlways,
+		},
+	}
+	return pod
+}
+
+// Custom code end
+///////////////////////////////
