@@ -21,7 +21,12 @@ in its own directory with an `op-` prefix.
 
 #### Setting up the environment
 
-Setup: 
+`cp config.example.env config.env` and adjust the values in `config.env` as needed.
+
+```bash
+./setup.sh
+```
+
 * creates the kind cluster, if necessary
 * sets the current context to the cluster
 * preinstalls images defined in `scripts/preload-images.sh`
@@ -33,6 +38,8 @@ It can be helpful to start from a clean slate by deleting the kind cluster.
 ```bash
 ./teardown.sh
 ```
+
+Run `./setup.sh` again to recreate it.
 
 ### Getting Started
 

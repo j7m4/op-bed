@@ -19,6 +19,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -32,6 +33,10 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
 	appsv1 "github.com/example/op-hello-world/api/v1"
+	"github.com/example/op-hello-world/internal/metrics"
+	"github.com/example/op-hello-world/internal/tracing"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 )
 
 // HelloWorldReconciler reconciles a HelloWorld object
@@ -55,29 +60,59 @@ type HelloWorldReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.21.0/pkg/reconcile
 func (r *HelloWorldReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	log := logf.FromContext(ctx)
+	log := logf.FromContext(ctx).WithValues("helloworld", req.NamespacedName)
 
 	///////////////////////////////
 	// Custom code start
 	// This section handles the reconciliation logic for HelloWorld resources
+
+	// Start tracing span
+	tracer := tracing.GetTracer("helloworld-controller")
+	ctx, span := tracer.Start(ctx, "Reconcile",
+		attribute.String("resource.name", req.Name),
+		attribute.String("resource.namespace", req.Namespace),
+	)
+	defer span.End()
+
+	// Start timing the reconciliation
+	start := time.Now()
+	defer func() {
+		duration := time.Since(start).Seconds()
+		metrics.ReconcileDuration.WithLabelValues("helloworld").Observe(duration)
+		span.SetAttributes(attribute.Float64("reconcile.duration_seconds", duration))
+	}()
 
 	// Fetch the HelloWorld instance
 	helloworld := &appsv1.HelloWorld{}
 	err := r.Get(ctx, req.NamespacedName, helloworld)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			log.Info("HelloWorld resource not found. Ignoring since object must be deleted")
+			log.V(1).Info("HelloWorld resource not found. Ignoring since object must be deleted")
+			metrics.ReconcileTotal.WithLabelValues("helloworld", "resource_deleted").Inc()
+			span.SetAttributes(attribute.String("reconcile.result", "resource_deleted"))
 			return ctrl.Result{}, nil
 		}
 		log.Error(err, "Failed to get HelloWorld")
+		metrics.ReconcileErrors.WithLabelValues("helloworld").Inc()
+		metrics.ReconcileTotal.WithLabelValues("helloworld", "error").Inc()
+		tracing.RecordError(span, err, "Failed to get HelloWorld resource")
+		span.SetStatus(codes.Error, "Failed to get HelloWorld")
 		return ctrl.Result{}, err
 	}
+
+	// Add resource attributes to span
+	span.SetAttributes(
+		attribute.String("helloworld.message", helloworld.Spec.Message),
+		attribute.String("helloworld.uid", string(helloworld.UID)),
+	)
 
 	// Define the desired pod for this HelloWorld resource
 	pod := r.podForHelloWorld(helloworld)
 
 	// Set HelloWorld instance as the owner and controller
 	if err := controllerutil.SetControllerReference(helloworld, pod, r.Scheme); err != nil {
+		tracing.RecordError(span, err, "Failed to set controller reference")
+		span.SetStatus(codes.Error, "Failed to set controller reference")
 		return ctrl.Result{}, err
 	}
 
@@ -85,21 +120,50 @@ func (r *HelloWorldReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	found := &corev1.Pod{}
 	err = r.Get(ctx, types.NamespacedName{Name: pod.Name, Namespace: pod.Namespace}, found)
 	if err != nil && errors.IsNotFound(err) {
-		log.Info("Creating a new Pod", "Pod.Namespace", pod.Namespace, "Pod.Name", pod.Name)
+		log.Info("Creating a new Pod", "pod", types.NamespacedName{Name: pod.Name, Namespace: pod.Namespace}, "message", helloworld.Spec.Message)
+		
+		// Create child span for pod creation
+		_, createSpan := tracer.Start(ctx, "CreatePod",
+			attribute.String("pod.name", pod.Name),
+			attribute.String("pod.namespace", pod.Namespace),
+		)
 		err = r.Create(ctx, pod)
+		createSpan.End()
+		
 		if err != nil {
-			log.Error(err, "Failed to create new Pod", "Pod.Namespace", pod.Namespace, "Pod.Name", pod.Name)
+			log.Error(err, "Failed to create new Pod", "pod", types.NamespacedName{Name: pod.Name, Namespace: pod.Namespace})
+			metrics.PodCreationErrors.WithLabelValues(pod.Namespace).Inc()
+			metrics.ReconcileErrors.WithLabelValues("helloworld").Inc()
+			metrics.ReconcileTotal.WithLabelValues("helloworld", "error").Inc()
+			tracing.RecordError(span, err, "Failed to create pod")
+			span.SetStatus(codes.Error, "Failed to create pod")
 			return ctrl.Result{}, err
 		}
 		// Pod created successfully - return and requeue
+		metrics.PodCreations.WithLabelValues(pod.Namespace).Inc()
+		metrics.ReconcileTotal.WithLabelValues("helloworld", "pod_created").Inc()
+		log.Info("Pod created successfully", "pod", types.NamespacedName{Name: pod.Name, Namespace: pod.Namespace}, "message", helloworld.Spec.Message)
+		span.SetAttributes(attribute.String("reconcile.result", "pod_created"))
+		span.SetStatus(codes.Ok, "Pod created successfully")
 		return ctrl.Result{Requeue: true}, nil
 	} else if err != nil {
 		log.Error(err, "Failed to get Pod")
+		metrics.ReconcileErrors.WithLabelValues("helloworld").Inc()
+		metrics.ReconcileTotal.WithLabelValues("helloworld", "error").Inc()
+		tracing.RecordError(span, err, "Failed to get pod")
+		span.SetStatus(codes.Error, "Failed to get pod")
 		return ctrl.Result{}, err
 	}
 
 	// Pod already exists - don't update, just log
-	log.Info("Skip reconcile: Pod already exists", "Pod.Namespace", found.Namespace, "Pod.Name", found.Name)
+	log.V(1).Info("Skip reconcile: Pod already exists", "pod", types.NamespacedName{Name: found.Name, Namespace: found.Namespace})
+	metrics.ReconcileTotal.WithLabelValues("helloworld", "no_change").Inc()
+
+	// Update HelloWorld resource count metric
+	metrics.HelloWorldResources.WithLabelValues(helloworld.Namespace).Set(1)
+	
+	span.SetAttributes(attribute.String("reconcile.result", "no_change"))
+	span.SetStatus(codes.Ok, "Reconciliation completed")
 
 	// Custom code end
 	///////////////////////////////

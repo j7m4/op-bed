@@ -75,22 +75,23 @@ k8s_resource('grafana',
 )
 
 # Include op-hello-world if it exists
-# if os.path.exists('op-hello-world'):
-#     # Build the op-hello-world operator
-#     docker_build(
-#         'op-hello-world:latest',
-#         './op-hello-world',
-#         dockerfile='./op-hello-world/Dockerfile'
-#     )
+if os.path.exists('op-hello-world'):
+    # Build the op-hello-world operator using make docker
+    local_resource(
+        'op-hello-world-docker',
+        'cd op-hello-world && make docker-build IMG=op-hello-world:latest',
+        deps=['./op-hello-world'],
+        labels=['operator']
+    )
 
-#     # Apply CRDs
-#     k8s_yaml(kustomize('./op-hello-world/config/crd'))
+    # Apply CRDs
+    k8s_yaml(kustomize('./op-hello-world/config/crd'))
 
-#     # Apply operator manifests
-#     k8s_yaml(kustomize('./op-hello-world/config/default'))
+    # Apply operator manifests
+    k8s_yaml(kustomize('./op-hello-world/config/default'))
 
-#     k8s_resource('op-hello-world-controller-manager',
-#         port_forwards=['8080:8080'],
-#         labels=['operator'],
-#         resource_deps=['alloy']
-#     )
+    k8s_resource('op-hello-world-controller-manager',
+        port_forwards=['8080:8080'],
+        labels=['operator'],
+        resource_deps=['alloy', 'op-hello-world-docker']
+    )
