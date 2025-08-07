@@ -1,6 +1,7 @@
 # Image URL to use all building/pushing image targets
 # GitHub Container Registry image
-IMG ?= ghcr.io/j7m4/op-hello-world:latest
+include ../config.env
+IMG ?= ${GHCR_HOST}/${GHCR_USER}/op-hello-world:latest
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))

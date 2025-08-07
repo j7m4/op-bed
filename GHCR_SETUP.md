@@ -14,15 +14,20 @@ This guide explains how to authenticate with GitHub Container Registry (ghcr.io)
    - Click "Generate new token (classic)"
    - Select the `write:packages` scope (this will auto-select `read:packages`)
    - Generate and copy the token
+   - Save this in `config.env` as `GHCR_PAT`; also, save `GHCR_USER` to your GitHub username.
+   - In `config.env`, ensure `DOCKER_REGISTRY`, `DOCKER_USERNAME`, and `DOCKER_PASSWORD` are set in `config.env` from the `GHCR_*` values.
 
 2. Log in to GitHub Container Registry:
    ```bash
-   echo $YOUR_PAT | docker login ghcr.io -u j7m4 --password-stdin
+   source config.env
+   echo $DOCKER_PASSWORD | docker login $DOCKER_REGISTRY -u $DOCKER_USERNAME --password-stdin
    ```
+   
+   Or, use `./scripts/docker-login.sh`
 
 ## Building and Pushing the Controller Image
 
-The Makefile is already configured to use `ghcr.io/j7m4/op-hello-world:latest` as the default image.
+In each operator directory (e.g., `op-hello-world`), the `Makefile` is set up to build and push the Docker image.
 
 1. Build the Docker image:
    ```bash

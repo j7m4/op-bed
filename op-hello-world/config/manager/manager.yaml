@@ -96,4 +96,6 @@ spec:
         volumeMounts: []
       volumes: []
       serviceAccountName: controller-manager
+      imagePullSecrets:
+      - name: ghcr-login
       terminationGracePeriodSeconds: 10

@@ -37,6 +37,7 @@ import (
 	"github.com/example/op-hello-world/internal/tracing"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // HelloWorldReconciler reconciles a HelloWorld object
@@ -69,8 +70,10 @@ func (r *HelloWorldReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	// Start tracing span
 	tracer := tracing.GetTracer("helloworld-controller")
 	ctx, span := tracer.Start(ctx, "Reconcile",
-		attribute.String("resource.name", req.Name),
-		attribute.String("resource.namespace", req.Namespace),
+		trace.WithAttributes(
+			attribute.String("resource.name", req.Name),
+			attribute.String("resource.namespace", req.Namespace),
+		),
 	)
 	defer span.End()
 
@@ -121,15 +124,17 @@ func (r *HelloWorldReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	err = r.Get(ctx, types.NamespacedName{Name: pod.Name, Namespace: pod.Namespace}, found)
 	if err != nil && errors.IsNotFound(err) {
 		log.Info("Creating a new Pod", "pod", types.NamespacedName{Name: pod.Name, Namespace: pod.Namespace}, "message", helloworld.Spec.Message)
-		
+
 		// Create child span for pod creation
 		_, createSpan := tracer.Start(ctx, "CreatePod",
-			attribute.String("pod.name", pod.Name),
-			attribute.String("pod.namespace", pod.Namespace),
+			trace.WithAttributes(
+				attribute.String("pod.name", pod.Name),
+				attribute.String("pod.namespace", pod.Namespace),
+			),
 		)
 		err = r.Create(ctx, pod)
 		createSpan.End()
-		
+
 		if err != nil {
 			log.Error(err, "Failed to create new Pod", "pod", types.NamespacedName{Name: pod.Name, Namespace: pod.Namespace})
 			metrics.PodCreationErrors.WithLabelValues(pod.Namespace).Inc()
@@ -161,7 +166,7 @@ func (r *HelloWorldReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 
 	// Update HelloWorld resource count metric
 	metrics.HelloWorldResources.WithLabelValues(helloworld.Namespace).Set(1)
-	
+
 	span.SetAttributes(attribute.String("reconcile.result", "no_change"))
 	span.SetStatus(codes.Ok, "Reconciliation completed")
 

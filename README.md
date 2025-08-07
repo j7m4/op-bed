@@ -28,6 +28,7 @@ in its own directory with an `op-` prefix.
 ```
 
 * creates the kind cluster, if necessary
+* runs `./scripts/docker-login.sh` to authenticate with the Docker registry and stores it as a secret in the cluster
 * sets the current context to the cluster
 * preinstalls images defined in `scripts/preload-images.sh`
 
