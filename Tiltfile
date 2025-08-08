@@ -1,10 +1,24 @@
 # Tiltfile for Grafana LGTM + Alloy Stack
 
+# Load environment variables from config.env
+load('ext://dotenv', 'dotenv')
+dotenv('./config.env')
+
 # Update settings
 update_settings(max_parallel_updates=3)
 
 # Allow Kubernetes context
 allow_k8s_contexts('kind-op-bed')
+
+# Install Prometheus Operator CRDs
+# This is required for ServiceMonitor resources used by op-hello-world and potentially other operators
+local_resource(
+    'prometheus-operator-crds',
+    'helm repo add prometheus-community https://prometheus-community.github.io/helm-charts && ' +
+    'helm repo update && ' +
+    'helm upgrade --install prometheus-crds prometheus-community/prometheus-operator-crds --create-namespace --namespace monitoring',
+    labels=['observability']
+)
 
 # Load Kubernetes manifests in order
 # 1. ConfigMaps first
@@ -76,16 +90,13 @@ k8s_resource('grafana',
 
 # Include op-hello-world if it exists
 if os.path.exists('op-hello-world'):
-    # Build the op-hello-world operator using make docker
+    # Build and load the op-hello-world operator Docker image into Kind
     local_resource(
         'op-hello-world-docker',
-        'cd op-hello-world && make docker-build IMG=op-hello-world:latest',
+        'cd op-hello-world && make docker-load-image',
         deps=['./op-hello-world'],
         labels=['operator']
     )
-
-    # Apply CRDs
-    k8s_yaml(kustomize('./op-hello-world/config/crd'))
 
     # Apply operator manifests
     k8s_yaml(kustomize('./op-hello-world/config/default'))
@@ -93,5 +104,5 @@ if os.path.exists('op-hello-world'):
     k8s_resource('op-hello-world-controller-manager',
         port_forwards=['8080:8080'],
         labels=['operator'],
-        resource_deps=['alloy', 'op-hello-world-docker']
+        resource_deps=['alloy', 'op-hello-world-docker', 'prometheus-operator-crds']
     )

@@ -78,7 +78,7 @@ To test the observability features:
 
 ```bash
 # Deploy with observability features
-make deploy IMG=<your-registry>/op-hello-world:tag
+make deploy-controller IMG=<your-registry>/op-hello-world:tag
 
 # Set OTLP endpoint for tracing
 kubectl set env deployment/op-hello-world-controller-manager -n op-hello-world-system OTEL_EXPORTER_OTLP_ENDPOINT=<otlp-endpoint>:4317

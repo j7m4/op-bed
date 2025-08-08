@@ -5,5 +5,24 @@ metadata:
     app.kubernetes.io/name: op-hello-world
     app.kubernetes.io/managed-by: kustomize
   name: helloworld-sample
+  namespace: default
 spec:
   message: "Hello from HelloWorld operator!"
+# Status will be populated by the controller:
+# status:
+#   phase: Running
+#   podName: helloworld-sample-pod
+#   message: "Pod is running"
+#   lastUpdateTime: "2025-08-07T20:00:00Z"
+#   observedGeneration: 1
+#   conditions:
+#   - type: Ready
+#     status: "True"
+#     reason: PodRunning
+#     message: "Pod is running successfully"
+#     lastTransitionTime: "2025-08-07T20:00:00Z"
+#   - type: Progressing
+#     status: "False"
+#     reason: Stable
+#     message: "Resource is stable"
+#     lastTransitionTime: "2025-08-07T20:00:00Z"

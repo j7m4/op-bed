@@ -1,8 +1,14 @@
 resources:
 - manager.yaml
+- pull_secret.yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 images:
 - name: controller
   newName: ghcr.io/j7m4/op-hello-world
   newTag: latest
+patches:
+- path: otel_env_patch.yaml
+  target:
+    kind: Deployment
+    name: controller-manager

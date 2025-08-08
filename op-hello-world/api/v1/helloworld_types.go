@@ -23,6 +23,24 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
+// Phase constants for HelloWorld status
+const (
+	PhasePending = "Pending"
+	PhaseRunning = "Running"
+	PhaseFailed  = "Failed"
+	PhaseUnknown = "Unknown"
+)
+
+// Condition types for HelloWorld status
+const (
+	// TypeReady indicates whether the HelloWorld resource is ready
+	TypeReady = "Ready"
+	// TypeProgressing indicates whether the HelloWorld resource is progressing
+	TypeProgressing = "Progressing"
+	// TypeDegraded indicates whether the HelloWorld resource is degraded
+	TypeDegraded = "Degraded"
+)
+
 // HelloWorldSpec defines the desired state of HelloWorld
 type HelloWorldSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
@@ -39,6 +57,33 @@ type HelloWorldSpec struct {
 type HelloWorldStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
+
+	// Conditions represent the latest available observations of the HelloWorld's state
+	// +optional
+	// +listType=map
+	// +listMapKey=type
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
+
+	// Phase represents the current phase of the HelloWorld resource
+	// +optional
+	// +kubebuilder:validation:Enum=Pending;Running;Failed;Unknown
+	Phase string `json:"phase,omitempty"`
+
+	// PodName is the name of the pod created for this HelloWorld resource
+	// +optional
+	PodName string `json:"podName,omitempty"`
+
+	// Message contains any additional information about the current status
+	// +optional
+	Message string `json:"message,omitempty"`
+
+	// LastUpdateTime is the last time the status was updated
+	// +optional
+	LastUpdateTime *metav1.Time `json:"lastUpdateTime,omitempty"`
+
+	// ObservedGeneration reflects the generation of the most recently observed HelloWorld spec
+	// +optional
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 }
 
 // +kubebuilder:object:root=true

@@ -28,7 +28,6 @@ import (
 	"go.opentelemetry.io/otel/propagation"
 	sdkresource "go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -53,18 +52,13 @@ func InitTracer(ctx context.Context, serviceName string) (func(context.Context) 
 	}
 
 	// Create resource with service information
-	resource, err := sdkresource.Merge(
-		sdkresource.Default(),
-		sdkresource.NewWithAttributes(
-			semconv.SchemaURL,
-			semconv.ServiceName(serviceName),
-			semconv.ServiceVersion("1.0.0"),
-			attribute.String("environment", getEnvironment()),
-		),
+	// Using empty schema URL and plain attribute keys to avoid schema conflicts
+	resource := sdkresource.NewWithAttributes(
+		"", // Empty schema URL to avoid conflicts with controller-runtime
+		attribute.String("service.name", serviceName),
+		attribute.String("service.version", "1.0.0"),
+		attribute.String("environment", getEnvironment()),
 	)
-	if err != nil {
-		return nil, fmt.Errorf("creating resource: %w", err)
-	}
 
 	// Create trace provider
 	tp := sdktrace.NewTracerProvider(

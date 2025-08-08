@@ -11,7 +11,7 @@ echo "🚀 Preloading images for Kind cluster: $CLUSTER_NAME"
 # List of images to preload
 IMAGES=(
 
-  "redis/redis:8.0.3"
+  "redis:8.0.3"
 
   # Observability stack
   "grafana/otel-lgtm:0.11.6"

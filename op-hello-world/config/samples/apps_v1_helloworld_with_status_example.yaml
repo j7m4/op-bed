@@ -1,0 +1,42 @@
+# This is an example of what a HelloWorld resource looks like with status populated by the controller
+# DO NOT apply this file directly - the status section is read-only and managed by the controller
+apiVersion: apps.example.com/v1
+kind: HelloWorld
+metadata:
+  labels:
+    app.kubernetes.io/name: op-hello-world
+    app.kubernetes.io/managed-by: kustomize
+  name: helloworld-example
+  namespace: default
+spec:
+  message: "Hello from HelloWorld operator!"
+status:
+  # Phase indicates the current state of the HelloWorld resource
+  phase: Running
+  
+  # PodName shows which pod was created for this resource
+  podName: helloworld-example-pod
+  
+  # Message provides human-readable status information
+  message: "Pod is Running"
+  
+  # LastUpdateTime shows when the status was last updated
+  lastUpdateTime: "2025-08-07T20:00:00Z"
+  
+  # ObservedGeneration matches metadata.generation when status is up-to-date
+  observedGeneration: 1
+  
+  # Conditions provide detailed status information
+  conditions:
+  - type: Ready
+    status: "True"
+    reason: PodRunning
+    message: "Pod is running successfully"
+    lastTransitionTime: "2025-08-07T20:00:00Z"
+    observedGeneration: 1
+  - type: Progressing
+    status: "False"
+    reason: Stable
+    message: "Resource is stable"
+    lastTransitionTime: "2025-08-07T20:00:00Z"
+    observedGeneration: 1

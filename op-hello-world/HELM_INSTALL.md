@@ -41,6 +41,10 @@ kubectl get crd helloworlds.apps.example.com
 ### 3. Create a HelloWorld Resource
 
 ```bash
+# Using make task (recommended)
+make install-resource
+
+# Or directly with kubectl
 kubectl apply -f config/samples/apps_v1_helloworld.yaml
 ```
 
@@ -105,6 +109,16 @@ helm upgrade op-hello-world ./dist/chart \
 
 ## Uninstall
 
+To remove HelloWorld resources:
+
+```bash
+# Remove the sample resource
+make uninstall-resource
+
+# Or remove a specific resource
+make uninstall-resource RESOURCE_PATH=path/to/your/resource.yaml
+```
+
 To remove the operator:
 
 ```bash
@@ -115,6 +129,8 @@ Note: By default, CRDs are kept after uninstall due to `crd.keep: true`. To remo
 
 ```bash
 kubectl delete crd helloworlds.apps.example.com
+# Or using make task
+make uninstall-crd
 ```
 
 ## Package the Chart

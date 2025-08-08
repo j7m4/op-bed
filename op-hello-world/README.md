@@ -3,7 +3,8 @@
 This operator manages HelloWorld custom resources and deploys busybox pods in response to their creation or updates.
 
 ## Description
-The op-hello-world operator is a Kubernetes operator built with Kubebuilder that watches for HelloWorld custom resources. When a HelloWorld resource is created or updated, the operator creates and manages a busybox pod deployment.
+The op-hello-world operator is a Kubernetes operator built with Kubebuilder that watches for HelloWorld custom resources. 
+When a HelloWorld resource is created or updated, the operator creates and manages a busybox pod deployment.
 
 ## Creation Commands
 
@@ -100,44 +101,52 @@ Make sure you have the proper permission to the registry if the above commands d
 **Install the CRDs into the cluster:**
 
 ```sh
-make install
+make install-crd
 ```
 
 **Deploy the Manager to the cluster with the image specified by `IMG`:**
 
 ```sh
-make deploy IMG=<some-registry>/op-hello-world:tag
+make deploy-controller IMG=<some-registry>/op-hello-world:tag
 ```
 
 > **NOTE**: If you encounter RBAC errors, you may need to grant yourself cluster-admin
 privileges or be logged in as admin.
 
 **Create instances of your solution**
-You can apply the samples (examples) from the config/sample:
+You can apply the samples (examples) using the make task:
 
 ```sh
-kubectl apply -k config/samples/
+# Install the default sample resource
+make install-resource
+
+# Or install a custom resource file
+make install-resource RESOURCE_PATH=path/to/your/helloworld.yaml
 ```
 
->**NOTE**: Ensure that the samples has default values to test it out.
+>**NOTE**: The default resource path is `config/samples/apps_v1_helloworld.yaml`.
 
 ### To Uninstall
 **Delete the instances (CRs) from the cluster:**
 
 ```sh
-kubectl delete -k config/samples/
+# Uninstall the default sample resource
+make uninstall-resource
+
+# Or uninstall a custom resource file
+make uninstall-resource RESOURCE_PATH=path/to/your/helloworld.yaml
 ```
 
 **Delete the APIs(CRDs) from the cluster:**
 
 ```sh
-make uninstall
+make uninstall-crd
 ```
 
 **UnDeploy the controller from the cluster:**
 
 ```sh
-make undeploy
+make undeploy-controller
 ```
 
 ## Project Distribution
