@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"crypto/tls"
 	"flag"
 	"os"
@@ -39,6 +40,7 @@ import (
 
 	appsv1 "github.com/example/op-hello-world/api/v1"
 	"github.com/example/op-hello-world/internal/controller"
+	"github.com/example/op-hello-world/internal/tracing"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -88,6 +90,26 @@ func main() {
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+
+	///////////////////////////////
+	// Custom code start
+	// Initialize OpenTelemetry tracing
+
+	ctx := context.Background()
+	shutdownTracing, err := tracing.InitTracer(ctx, "op-hello-world")
+	if err != nil {
+		setupLog.Error(err, "Failed to initialize tracing")
+	} else {
+		defer func() {
+			if err := shutdownTracing(ctx); err != nil {
+				setupLog.Error(err, "Failed to shutdown tracing")
+			}
+		}()
+		setupLog.Info("OpenTelemetry tracing initialized")
+	}
+
+	// Custom code end
+	///////////////////////////////"
 
 	// if the enable-http2 flag is false (the default), http/2 should be disabled
 	// due to its vulnerabilities. More specifically, disabling http/2 will

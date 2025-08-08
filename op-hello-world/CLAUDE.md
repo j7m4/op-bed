@@ -53,13 +53,22 @@ make vet
 ### Deployment
 ```bash
 # Install CRDs into cluster
-make install
+make install-crd
 
 # Deploy controller to cluster
-make deploy IMG=<your-registry>/op-hello-world:tag
+make deploy-controller IMG=<your-registry>/op-hello-world:tag
 
 # Build and push Docker image
 make docker-build docker-push IMG=<your-registry>/op-hello-world:tag
+
+# Install a HelloWorld resource
+make install-resource
+
+# Install a custom HelloWorld resource
+make install-resource RESOURCE_PATH=path/to/custom.yaml
+
+# Uninstall the resource
+make uninstall-resource
 ```
 
 ## Architecture

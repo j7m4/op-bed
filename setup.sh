@@ -57,6 +57,14 @@ kubectl config use-context "$KUBECTL_CONTEXT"
 echo "🔍 Verifying cluster..."
 kubectl cluster-info --context "$KUBECTL_CONTEXT"
 
+# Setup registry credentials in the cluster
+if [ -f "./scripts/docker-login.sh" ]; then
+    echo ""
+    echo "🔐 Setting up registry authentication..."
+    ./scripts/docker-login.sh
+    ./scripts/setup-registry-secret.sh
+fi
+
 # Preload images if not disabled
 if [ "$PRELOAD_IMAGES" = true ]; then
     echo ""

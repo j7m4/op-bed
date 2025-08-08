@@ -1,10 +1,24 @@
 # Tiltfile for Grafana LGTM + Alloy Stack
 
+# Load environment variables from config.env
+load('ext://dotenv', 'dotenv')
+dotenv('./config.env')
+
 # Update settings
 update_settings(max_parallel_updates=3)
 
 # Allow Kubernetes context
 allow_k8s_contexts('kind-op-bed')
+
+# Install Prometheus Operator CRDs
+# This is required for ServiceMonitor resources used by op-hello-world and potentially other operators
+local_resource(
+    'prometheus-operator-crds',
+    'helm repo add prometheus-community https://prometheus-community.github.io/helm-charts && ' +
+    'helm repo update && ' +
+    'helm upgrade --install prometheus-crds prometheus-community/prometheus-operator-crds --create-namespace --namespace monitoring',
+    labels=['observability']
+)
 
 # Load Kubernetes manifests in order
 # 1. ConfigMaps first
@@ -75,22 +89,74 @@ k8s_resource('grafana',
 )
 
 # Include op-hello-world if it exists
-# if os.path.exists('op-hello-world'):
-#     # Build the op-hello-world operator
-#     docker_build(
-#         'op-hello-world:latest',
-#         './op-hello-world',
-#         dockerfile='./op-hello-world/Dockerfile'
-#     )
+if os.path.exists('op-hello-world'):
+    local_resource(
+        'build-ohw',
+        cmd="""
+        make -C op-hello-world build
+        echo "Build complete"
+        tilt trigger docker-build-push-ohw
+        """,
+        #deps=['./op-hello-world/api'],
+        labels=['op-hello-world'],
+        trigger_mode=TRIGGER_MODE_MANUAL,
+        auto_init=False
+    )
 
-#     # Apply CRDs
-#     k8s_yaml(kustomize('./op-hello-world/config/crd'))
+    local_resource(
+        'docker-build-push-ohw',
+        cmd="""
+        make -C op-hello-world docker-build docker-push
+        echo "Docker build and push complete"
+        tilt trigger kind-load-image-ohw
+        """,
+        resource_deps=['build-ohw'],
+        labels=['op-hello-world']
+    )
 
-#     # Apply operator manifests
-#     k8s_yaml(kustomize('./op-hello-world/config/default'))
+    local_resource(
+        'kind-load-image-ohw',
+        cmd="""
+        make -C op-hello-world kind-load-image
+        echo "Image loaded into kind cluster"
+        tilt trigger deploy-controller-ohw
+        """,
+        resource_deps=['docker-build-push-ohw'],
+        labels=['op-hello-world']
+    )
 
-#     k8s_resource('op-hello-world-controller-manager',
-#         port_forwards=['8080:8080'],
-#         labels=['operator'],
-#         resource_deps=['alloy']
-#     )
+    local_resource(
+        'deploy-controller-ohw',
+        cmd="""
+        make -C op-hello-world deploy-controller
+        echo "Controller deployed"
+        tilt trigger install-resource-ohw
+        """,
+        resource_deps=['kind-load-image-ohw'],
+        labels=['op-hello-world']
+    )
+
+    local_resource(
+        'undeploy-controller-ohw',
+        'make -C op-hello-world undeploy-controller; echo "Controller undeployed"',
+        labels=['op-hello-world'],
+        trigger_mode=TRIGGER_MODE_MANUAL,
+        auto_init=False
+    )
+
+    local_resource(
+        'install-resource-ohw',
+        'make -C op-hello-world install-resource; echo "Resource installed"',
+        resource_deps=['deploy-controller-ohw'],
+        labels=['op-hello-world']
+    )
+
+    local_resource(
+       'uninstall-resource-ohw',
+       'make -C op-hello-world uninstall-resource; echo "Resource uninstalled"',
+       labels=['op-hello-world'],
+       trigger_mode=TRIGGER_MODE_MANUAL,
+       auto_init=False
+   )
+
+

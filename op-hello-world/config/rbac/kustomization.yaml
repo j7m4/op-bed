@@ -25,4 +25,7 @@ resources:
 - helloworld_admin_role.yaml
 - helloworld_editor_role.yaml
 - helloworld_viewer_role.yaml
+# RBAC for reading ghcr-login secret from default namespace
+- secret_reader_role.yaml
+- secret_reader_role_binding.yaml
 
