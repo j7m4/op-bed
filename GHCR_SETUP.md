@@ -49,7 +49,7 @@ In each operator directory (e.g., `op-hello-world`), the `Makefile` is set up to
 To use a specific tag instead of `latest`:
 
 ```bash
-make docker-build docker-push IMG=ghcr.io/j7m4/op-hello-world:v1.0.0
+make docker-build docker-push IMG=ghcr.io/${GHRC_USER}/op-hello-world:v1.0.0
 ```
 
 ## Deploying to Kubernetes
@@ -64,14 +64,14 @@ make install
 make deploy
 
 # Or with a specific image tag
-make deploy IMG=ghcr.io/j7m4/op-hello-world:v1.0.0
+make deploy IMG=ghcr.io/${GHRC_USER}/op-hello-world:v1.0.0
 ```
 
 ## Making the Image Public (Optional)
 
 By default, GitHub Container Registry images are private. To make the image public:
 
-1. Go to https://github.com/j7m4?tab=packages
+1. Go to https://github.com/${GHRC_USER}?tab=packages
 2. Find the `op-hello-world` package
 3. Click on "Package settings"
 4. Scroll to "Danger Zone" and click "Change visibility"

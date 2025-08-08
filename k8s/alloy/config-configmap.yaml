@@ -55,6 +55,33 @@ data:
       }
     }
     
+    // Collect logs from Kubernetes pods using the correct configuration
+    loki.source.kubernetes "pods" {
+      targets    = discovery.kubernetes.pods.targets
+      forward_to = [loki.process.kubernetes.receiver]
+      
+      // Explicitly set the client configuration
+      client {
+        api_server = "https://kubernetes.default.svc.cluster.local"
+        bearer_token_file = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+        tls_config {
+          ca_file = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+        }
+      }
+    }
+    
+    // Process Kubernetes pod logs
+    loki.process "kubernetes" {
+      forward_to = [loki.write.default.receiver]
+      
+      // Extract Kubernetes metadata as labels
+      stage.static_labels {
+        values = {
+          cluster = "op-bed",
+        }
+      }
+    }
+    
     // Tempo exporter for traces
     otelcol.exporter.otlp "tempo" {
       client {
@@ -65,9 +92,14 @@ data:
       }
     }
     
-    // Kubernetes Service Discovery
+    // Kubernetes Service Discovery for Pods
     discovery.kubernetes "pods" {
       role = "pod"
+    }
+    
+    // Kubernetes Service Discovery for Services (for ServiceMonitor endpoints)
+    discovery.kubernetes "services" {
+      role = "service"
     }
     
     // Scrape Prometheus metrics from pods
@@ -76,6 +108,26 @@ data:
       forward_to = [prometheus.remote_write.mimir.receiver]
       
       scrape_interval = "15s"
+    }
+    
+    // Scrape metrics from op-hello-world controller
+    prometheus.scrape "op_hello_world" {
+      targets = [{
+        __address__ = "op-hello-world-controller-manager-metrics-service.op-hello-world-system.svc.cluster.local:8443",
+      }]
+      
+      forward_to = [prometheus.remote_write.mimir.receiver]
+      
+      metrics_path = "/metrics"
+      scheme = "https"
+      
+      tls_config {
+        insecure_skip_verify = true
+      }
+      
+      bearer_token_file = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+      
+      scrape_interval = "30s"
     }
     
     // Filter pods that have pprof annotation

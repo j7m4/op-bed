@@ -125,12 +125,12 @@ docker-build: ## Build docker image with the manager.
 docker-push: ## Push docker image with the manager.
 	$(CONTAINER_TOOL) push ${IMG}
 
-.PHONY: docker-load-image
-docker-load-image: docker-build ## Build and load docker image into Kind cluster.
+.PHONY: kind-load-image
+kind-load-image: docker-build ## Build and load docker image into Kind cluster.
 	$(KIND) load docker-image ${IMG} --name ${CLUSTER_NAME}
 
 .PHONY: deploy-controller-kind
-deploy-controller-kind: manifests kustomize docker-load-image ## Build, load to Kind, and deploy controller.
+deploy-controller-kind: manifests kustomize kind-load-image ## Build, load to Kind, and deploy controller.
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	$(KUSTOMIZE) build config/default | $(KUBECTL) apply -f -
 
@@ -190,6 +190,7 @@ deploy-controller: manifests kustomize ## Deploy controller to the K8s cluster s
 .PHONY: undeploy-controller
 undeploy-controller: kustomize ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
 	$(KUSTOMIZE) build config/default | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
+
 
 ##@ Dependencies
 
