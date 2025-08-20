@@ -15,8 +15,8 @@ IMAGES=(
 
   # Observability stack
   "grafana/otel-lgtm:0.11.6"
-  "grafana/pyroscope:main-6d0f426"
-  "grafana/alloy:v1.5.0"
+  "grafana/pyroscope:1.10.0"
+  "grafana/alloy:v1.4.3"
   "otel/opentelemetry-collector-contrib:0.130.1"
 )
 

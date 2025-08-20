@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: alloy
-  namespace: default
+  namespace: observability
 spec:
   selector:
     app: alloy

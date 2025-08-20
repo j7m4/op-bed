@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: pyroscope-config
-  namespace: default
+  namespace: observability
 data:
   pyroscope.yaml: |
     multitenancy_enabled: false

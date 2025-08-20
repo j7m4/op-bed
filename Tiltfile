@@ -10,82 +10,42 @@ update_settings(max_parallel_updates=3)
 # Allow Kubernetes context
 allow_k8s_contexts('kind-op-bed')
 
-# Install Prometheus Operator CRDs
-# This is required for ServiceMonitor resources used by op-hello-world and potentially other operators
-local_resource(
-    'prometheus-operator-crds',
-    'helm repo add prometheus-community https://prometheus-community.github.io/helm-charts && ' +
-    'helm repo update && ' +
-    'helm upgrade --install prometheus-crds prometheus-community/prometheus-operator-crds --create-namespace --namespace monitoring',
-    labels=['observability']
-)
-
-# Load Kubernetes manifests in order
-# 1. ConfigMaps first
+# Load Kubernetes manifests for Grafana LGTM stack
 k8s_yaml([
-    'k8s/loki/config-configmap.yaml',
-    'k8s/tempo/config-configmap.yaml',
-    'k8s/mimir/config-configmap.yaml',
     'k8s/pyroscope/config-configmap.yaml',
-    'k8s/grafana/datasources-configmap.yaml',
-    'k8s/grafana/dashboards-configmap.yaml',
-    'k8s/alloy/config-configmap.yaml'
-])
-
-# 2. RBAC for Alloy
-k8s_yaml('k8s/alloy/rbac.yaml')
-
-# 3. Services
-k8s_yaml([
-    'k8s/loki/service.yaml',
-    'k8s/tempo/service.yaml',
-    'k8s/mimir/service.yaml',
     'k8s/pyroscope/service.yaml',
-    'k8s/grafana/service.yaml',
-    'k8s/alloy/service.yaml'
-])
-
-# 4. Deployments
-k8s_yaml([
-    'k8s/loki/deployment.yaml',
-    'k8s/tempo/deployment.yaml',
-    'k8s/mimir/deployment.yaml',
     'k8s/pyroscope/deployment.yaml',
-    'k8s/alloy/deployment.yaml',
-    'k8s/grafana/deployment.yaml'
+    'k8s/grafana-lgtm/datasources-configmap.yaml',
+    'k8s/grafana-lgtm/deployment.yaml',
+    'k8s/alloy/config-configmap.yaml',
+    'k8s/alloy/rbac.yaml',
+    'k8s/alloy/service.yaml',
+    'k8s/alloy/deployment.yaml'
 ])
 
 # Configure resources
-k8s_resource('loki', 
-    port_forwards=['3100:3100'],
-    labels=['observability']
-)
-
-k8s_resource('tempo',
-    port_forwards=['3200:3200', '14317:4317', '14318:4318'],
-    labels=['observability']
-)
-
-k8s_resource('mimir',
-    port_forwards=['9009:9009'],
-    labels=['observability']
-)
-
 k8s_resource('pyroscope',
     port_forwards=['4040:4040'],
     labels=['observability']
 )
 
+k8s_resource('lgtm',
+    port_forwards=[
+        '3000:3000',  # Grafana
+        '3100:3100',  # Loki
+        '9090:9090',  # Prometheus
+        '3200:3200',  # Tempo
+        '4317:4317',  # OTLP gRPC
+        '4318:4318'   # OTLP HTTP
+    ],
+    labels=['observability'],
+    resource_deps=['pyroscope']
+)
+
 k8s_resource('alloy',
     port_forwards=['12345:12345'],
     labels=['observability'],
-    resource_deps=['loki', 'tempo', 'mimir', 'pyroscope']
-)
-
-k8s_resource('grafana',
-    port_forwards=['3000:3000'],
-    labels=['observability'],
-    resource_deps=['loki', 'tempo', 'mimir', 'pyroscope']
+    resource_deps=['lgtm', 'pyroscope']
 )
 
 # Include op-hello-world if it exists

@@ -1,9 +1,0 @@
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: grafana-dashboards-config
-  namespace: default
-data:
-  dashboards.yaml: |
-    apiVersion: 1
-    providers: []

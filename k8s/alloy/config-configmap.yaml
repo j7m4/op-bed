@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: alloy-config
-  namespace: default
+  namespace: observability
 data:
   config.alloy: |
     // OpenTelemetry Receiver
@@ -36,10 +36,10 @@ data:
       forward_to = [prometheus.remote_write.mimir.receiver]
     }
     
-    // Remote write to Mimir
+    // Remote write to Prometheus
     prometheus.remote_write "mimir" {
       endpoint {
-        url = "http://mimir:9009/api/v1/push"
+        url = "http://lgtm.observability:9090/api/v1/write"
       }
     }
     
@@ -51,7 +51,7 @@ data:
     // Write to Loki
     loki.write "default" {
       endpoint {
-        url = "http://loki:3100/loki/api/v1/push"
+        url = "http://lgtm.observability:3100/loki/api/v1/push"
       }
     }
     
@@ -189,6 +189,6 @@ data:
     // Write to Pyroscope
     pyroscope.write "default" {
       endpoint {
-        url = "http://pyroscope:4040"
+        url = "http://pyroscope.observability:4040"
       }
     }
