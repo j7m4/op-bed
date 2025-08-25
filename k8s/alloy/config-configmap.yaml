@@ -5,16 +5,21 @@ metadata:
   namespace: observability
 data:
   config.alloy: |
+    // Logging
+    logging {
+      level = "info"
+      format = "json"
+    }
     // OpenTelemetry Receiver
     otelcol.receiver.otlp "default" {
       grpc {
         endpoint = "0.0.0.0:4317"
       }
-      
+    
       http {
         endpoint = "0.0.0.0:4318"
       }
-      
+    
       output {
         metrics = [otelcol.processor.batch.default.input]
         logs    = [otelcol.processor.batch.default.input]
@@ -23,43 +28,87 @@ data:
     }
     
     // Batch processor
-    otelcol.processor.batch "default" {
-      output {
-        metrics = [otelcol.exporter.prometheus.default.input]
-        logs    = [otelcol.exporter.loki.default.input]
-        traces  = [otelcol.exporter.otlp.tempo.input]
+    //otelcol.processor.batch "default" {
+    //  output {
+    //    metrics = [otelcol.exporter.prometheus.default.input]
+    //    logs    = [otelcol.exporter.loki.default.input]
+    //    traces  = [otelcol.exporter.otlp.tempo.input]
+    //  }
+    //}
+    
+    otelcol.exporter.otlp "mimir" {
+      client {
+        endpoint = "lgtm.observability:4317/v1/metrics"
+        tls {
+          insecure = true
+        }
       }
     }
     
+    otelcol.exporter.otlp "loki" {
+      client {
+        endpoint = "lgtm.observability:4317/v1/logs"
+        tls {
+          insecure = true
+        }
+      }
+    }
+    
+    otelcol.exporter.otlp "tempo" {
+      client {
+        endpoint = "lgtm.observability:4317/v1/traces"
+        tls {
+          insecure = true
+        }
+      }
+    }
+    
+    otelcol.service {
+      pipelines {
+        logs {
+          receivers = [otelcol.receiver.otlp.default]
+          exporters = [otelcol.exporter.otlp.loki]
+        }
+        traces {
+          receivers = [otelcol.receiver.otlp.default]
+          exporters = [otelcol.exporter.otlp.tempo]
+        }
+        metrics {
+          receivers = [otelcol.receiver.otlp.default]
+          exporters = [otelcol.exporter.otlp.mimir]
+        }
+      }
+    }
+
     // Prometheus exporter for metrics
-    otelcol.exporter.prometheus "default" {
-      forward_to = [prometheus.remote_write.mimir.receiver]
-    }
-    
+    //otelcol.exporter.prometheus "default" {
+    //  forward_to = [prometheus.remote_write.mimir.receiver]
+    //}
+
     // Remote write to Prometheus
-    prometheus.remote_write "mimir" {
-      endpoint {
-        url = "http://lgtm.observability:9090/api/v1/write"
-      }
-    }
-    
+    //prometheus.remote_write "mimir" {
+    //endpoint {
+    //url = "http://lgtm.observability:9090/api/v1/write"
+    //}
+    //}
+
     // Loki exporter for logs
-    otelcol.exporter.loki "default" {
-      forward_to = [loki.write.default.receiver]
-    }
-    
+    //otelcol.exporter.loki "default" {
+    //forward_to = [loki.write.default.receiver]
+    //}
+
     // Write to Loki
     loki.write "default" {
       endpoint {
         url = "http://lgtm.observability:3100/loki/api/v1/push"
       }
     }
-    
+
     // Collect logs from Kubernetes pods using the correct configuration
     loki.source.kubernetes "pods" {
       targets    = discovery.kubernetes.pods.targets
       forward_to = [loki.process.kubernetes.receiver]
-      
+  
       // Explicitly set the client configuration
       client {
         api_server = "https://kubernetes.default.svc.cluster.local"
@@ -69,11 +118,11 @@ data:
         }
       }
     }
-    
+
     // Process Kubernetes pod logs
     loki.process "kubernetes" {
       forward_to = [loki.write.default.receiver]
-      
+  
       // Extract Kubernetes metadata as labels
       stage.static_labels {
         values = {
@@ -81,73 +130,73 @@ data:
         }
       }
     }
-    
+
     // Tempo exporter for traces
     otelcol.exporter.otlp "tempo" {
       client {
-        endpoint = "tempo:4317"
+        endpoint = "lgtm.observability:4317/v1/traces"
         tls {
           insecure = true
         }
       }
     }
-    
+
     // Kubernetes Service Discovery for Pods
     discovery.kubernetes "pods" {
       role = "pod"
     }
-    
+
     // Kubernetes Service Discovery for Services (for ServiceMonitor endpoints)
     discovery.kubernetes "services" {
       role = "service"
     }
-    
+
     // Scrape Prometheus metrics from pods
     prometheus.scrape "kubernetes_pods" {
       targets    = discovery.kubernetes.pods.targets
       forward_to = [prometheus.remote_write.mimir.receiver]
-      
+  
       scrape_interval = "15s"
     }
-    
+
     // Scrape metrics from op-hello-world controller
     prometheus.scrape "op_hello_world" {
       targets = [{
         __address__ = "op-hello-world-controller-manager-metrics-service.op-hello-world-system.svc.cluster.local:8443",
       }]
-      
+ 
       forward_to = [prometheus.remote_write.mimir.receiver]
-      
+  
       metrics_path = "/metrics"
       scheme = "https"
-      
+  
       tls_config {
         insecure_skip_verify = true
       }
-      
+
       bearer_token_file = "/var/run/secrets/kubernetes.io/serviceaccount/token"
-      
+  
       scrape_interval = "30s"
     }
-    
+
     // Filter pods that have pprof annotation
     discovery.relabel "pprof_pods" {
       targets = discovery.kubernetes.pods.targets
-      
+  
       // Only keep pods with the annotation "pyroscope.io/scrape=true"
       rule {
         source_labels = ["__meta_kubernetes_pod_annotation_pyroscope_io_scrape"]
         regex = "true"
         action = "keep"
       }
-      
+
       // Set the service name from pod labels
       rule {
         source_labels = ["__meta_kubernetes_namespace", "__meta_kubernetes_pod_name"]
         separator = "/"
         target_label = "service_name"
       }
-      
+
       // Use the port from annotation if specified
       rule {
         source_labels = ["__meta_kubernetes_pod_annotation_pyroscope_io_port"]
@@ -156,12 +205,12 @@ data:
         replacement = "${__meta_kubernetes_pod_ip}:${1}"
       }
     }
-    
+
     // Pyroscope scraping for pprof endpoints
     pyroscope.scrape "pprof_scrape" {
       targets = discovery.relabel.pprof_pods.output
       forward_to = [pyroscope.write.default.receiver]
-      
+  
       profiling_config {
         profile.process_cpu {
           enabled = true
@@ -185,7 +234,7 @@ data:
         }
       }
     }
-    
+
     // Write to Pyroscope
     pyroscope.write "default" {
       endpoint {

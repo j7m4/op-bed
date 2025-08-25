@@ -59,6 +59,27 @@ spec:
           value: "grafana-pyroscope-datasource"
         - name: GF_PATHS_PROVISIONING
           value: "/etc/grafana/provisioning"
+        # Enable detailed logging for all LGTM components
+        - name: GF_LOG_LEVEL
+          value: "info"
+        - name: GF_LOG_CONSOLE_LEVEL
+          value: "info"
+        - name: LOKI_LOG_LEVEL
+          value: "info"
+        - name: TEMPO_LOG_LEVEL
+          value: "info"
+        - name: PROMETHEUS_LOG_LEVEL
+          value: "info"
+        - name: ENABLE_LOGS_GRAFANA
+          value: "true"
+        - name: ENABLE_LOGS_LOKI
+          value: "true"
+        - name: ENABLE_LOGS_PROMETHEUS
+          value: "true"
+        - name: ENABLE_LOGS_PYROSCOPE
+          value: "true"
+        - name: ENABLE_LOGS_TEMPO
+          value: "true"
         volumeMounts:
         - name: storage
           mountPath: /var/lib/grafana
