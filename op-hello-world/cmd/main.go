@@ -23,11 +23,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/example/op-hello-world/internal/logging"
-	"github.com/go-logr/zapr"
-	uberzap "go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
-
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
@@ -95,6 +90,8 @@ func main() {
 	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
 
+	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+
 	///////////////////////////////
 	// Custom code start
 	// Initialize OpenTelemetry exporters
@@ -126,26 +123,6 @@ func main() {
 		}()
 		setupLog.Info("OpenTelemetry metrics initialized")
 	}
-
-	// Development mode: log to console and to OpenTelemetry
-	// In production use the regular logr:
-	// ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
-
-	stdioCore := zapcore.NewCore(
-		zapcore.NewConsoleEncoder(zapcore.EncoderConfig{}),
-		zapcore.AddSync(os.Stdout),
-		zapcore.InfoLevel,
-	)
-	otelCore, otelLoggingShutdown, err := logging.InitLogger(ctx, "op-hello-world")
-	defer func() {
-		if err := otelLoggingShutdown(ctx); err != nil {
-			setupLog.Error(err, "Failed to shutdown logging")
-		}
-	}()
-	multiCore := zapcore.NewTee(stdioCore, otelCore)
-	zapLogger := uberzap.New(multiCore)
-	ctrl.SetLogger(zapr.NewLogger(zapLogger))
-	setupLog.Info("STDIO and OpenTelemetry logging initialized")
 
 	// Custom code end
 	///////////////////////////////"
