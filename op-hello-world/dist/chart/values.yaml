@@ -9,6 +9,7 @@ controllerManager:
       - "--leader-elect"
       - "--metrics-bind-address=:8443"
       - "--health-probe-bind-address=:8081"
+      - "--pprof-bind-address=:6060"
     resources:
       limits:
         cpu: 500m

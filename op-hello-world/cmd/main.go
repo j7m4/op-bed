@@ -20,6 +20,8 @@ import (
 	"context"
 	"crypto/tls"
 	"flag"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"path/filepath"
 
@@ -66,10 +68,13 @@ func main() {
 	var probeAddr string
 	var secureMetrics bool
 	var enableHTTP2 bool
+	var pprofAddr string
 	var tlsOpts []func(*tls.Config)
 	flag.StringVar(&metricsAddr, "metrics-bind-address", "0", "The address the metrics endpoint binds to. "+
 		"Use :8443 for HTTPS or :8080 for HTTP, or leave as 0 to disable the metrics service.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
+	flag.StringVar(&pprofAddr, "pprof-bind-address", "", "The address the pprof endpoint binds to. "+
+		"Use :6060 for HTTP, or leave empty to disable pprof.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
@@ -109,6 +114,16 @@ func main() {
 			}
 		}()
 		setupLog.Info("OpenTelemetry tracing initialized")
+	}
+
+	// Initialize pprof server if enabled
+	if pprofAddr != "" {
+		go func() {
+			setupLog.Info("Starting pprof server", "address", pprofAddr)
+			if err := http.ListenAndServe(pprofAddr, nil); err != nil {
+				setupLog.Error(err, "Failed to start pprof server")
+			}
+		}()
 	}
 
 	// Custom code end

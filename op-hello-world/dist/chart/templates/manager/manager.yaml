@@ -16,6 +16,8 @@ spec:
     metadata:
       annotations:
         kubectl.kubernetes.io/default-container: manager
+        pyroscope.io/scrape: "true"
+        pyroscope.io/port: "6060"
       labels:
         {{- include "chart.labels" . | nindent 8 }}
         control-plane: controller-manager

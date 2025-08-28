@@ -15,12 +15,87 @@ data:
     ///////////////////////////////////////////////////////////////////////////
     // Kubernetes Discovery and Relabeling
     
-    discovery.kubernetes "pod" {
+    discovery.kubernetes "all_pods" {
         role = "pod"
     }
     
-    discovery.relabel "pod" {
-      targets = discovery.kubernetes.pod.targets
+    discovery.relabel "all_pods" {
+      targets = discovery.kubernetes.all_pods.targets
+
+      rule {
+        source_labels = ["__meta_kubernetes_namespace"]
+        action = "replace"
+        target_label = "namespace"
+      }
+
+      rule {
+        source_labels = ["__meta_kubernetes_pod_name"]
+        action = "replace"
+        target_label = "pod"
+      }
+
+      rule {
+        source_labels = ["__meta_kubernetes_pod_container_name"]
+        action = "replace"
+        target_label = "container"
+      }
+
+      rule {
+        source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_name"]
+        action = "replace"
+        target_label = "app"
+      }
+
+      rule {
+        source_labels = ["__meta_kubernetes_namespace", "__meta_kubernetes_pod_container_name"]
+        action = "replace"
+        target_label = "job"
+        separator = "/"
+        replacement = "$1"
+      }
+
+      rule {
+        source_labels = ["__meta_kubernetes_pod_uid", "__meta_kubernetes_pod_container_name"]
+        action = "replace"
+        target_label = "__path__"
+        separator = "/"
+        replacement = "/var/log/pods/*$1/*.log"
+      }
+
+      rule {
+        source_labels = ["__meta_kubernetes_pod_container_id"]
+        action = "replace"
+        target_label = "container_runtime"
+        regex = "^(\\S+):\\/\\/.+$"
+        replacement = "$1"
+      }
+    }
+    
+    discovery.kubernetes "go_pods" {
+        role = "pod"
+    
+        selectors {
+          role  = "pod"
+          label = "app.kubernetes.io/name=op-hello-world"
+        }
+    }
+    
+    discovery.relabel "go_pods" {
+      targets = discovery.kubernetes.go_pods.targets
+
+      rule {
+        source_labels = ["__meta_kubernetes_pod_annotation_pyroscope_io_scrape"]
+        action        = "keep"
+        regex         = "true"
+      }
+    
+      rule {
+        source_labels = ["__address__", "__meta_kubernetes_pod_annotation_pyroscope_io_port"]
+        action        = "replace"
+        regex         = "([^:]+)(?::\\d+)?;(\\d+)" // Captures host with annotated port
+        replacement   = "$1:$2"
+        target_label  = "__address__"
+      }
 
       rule {
         source_labels = ["__meta_kubernetes_namespace"]
@@ -82,7 +157,7 @@ data:
     
     
     loki.source.kubernetes "pod_logs" {
-      targets    = discovery.relabel.pod.output
+      targets    = discovery.relabel.all_pods.output
       forward_to = [loki.process.pod_logs.receiver]
     }
 
@@ -145,9 +220,44 @@ data:
     }
     
     prometheus.scrape "default" {
-      targets = discovery.relabel.pod.output
+      targets = discovery.relabel.all_pods.output
 
       forward_to = [prometheus.remote_write.mimir.receiver]
 
     }
     
+    ////////////////////////////////////////////////////////////////////////////
+    // Pyroscope
+    
+    pyroscope.write "default" {
+      endpoint {
+        url = "http://pyroscope.observability.svc.cluster.local:4040"
+      }
+    }
+    
+    pyroscope.scrape "go_pods" {
+      targets = discovery.relabel.go_pods.output
+      forward_to = [pyroscope.write.default.receiver]
+    
+      profiling_config {
+        profile.process_cpu {
+          enabled = true
+        }
+        profile.block {
+          enabled = true
+        }
+        profile.memory {
+          enabled = true
+        }
+        profile.mutex {
+          enabled = true
+        }
+        profile.fgprof {
+          // requires another dependency: github.com/pyroscope-io/fgprof
+          enabled = false 
+        }
+        profile.goroutine {
+          enabled = true
+        }
+      }
+    }
