@@ -23,6 +23,7 @@ import (
 	"os"
 	"path/filepath"
 
+	_ "github.com/example/op-hello-world/internal/metrics" // Register custom metrics
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
@@ -40,7 +41,6 @@ import (
 
 	appsv1 "github.com/example/op-hello-world/api/v1"
 	"github.com/example/op-hello-world/internal/controller"
-	"github.com/example/op-hello-world/internal/metrics"
 	"github.com/example/op-hello-world/internal/tracing"
 	// +kubebuilder:scaffold:imports
 )
@@ -109,19 +109,6 @@ func main() {
 			}
 		}()
 		setupLog.Info("OpenTelemetry tracing initialized")
-	}
-
-	// Initialize metrics
-	shutdownMetrics, err := metrics.InitMetrics(ctx, "op-hello-world")
-	if err != nil {
-		setupLog.Error(err, "Failed to initialize metrics")
-	} else {
-		defer func() {
-			if err := shutdownMetrics(ctx); err != nil {
-				setupLog.Error(err, "Failed to shutdown metrics")
-			}
-		}()
-		setupLog.Info("OpenTelemetry metrics initialized")
 	}
 
 	// Custom code end
