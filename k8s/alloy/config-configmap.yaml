@@ -5,23 +5,21 @@ metadata:
   namespace: observability
 data:
   config.alloy: |
-    // Logging
+    ////////////////////////////////////////////////////////////////////////////
+    // Alloy Log Settings
     logging {
       level = "info"
       format = "json"
     }
     
-    loki.write "default" {
-      endpoint {
-        url = "http://lgtm.observability.svc.cluster.local:3100/loki/api/v1/push"
-      }
-    }
+    ///////////////////////////////////////////////////////////////////////////
+    // Kubernetes Discovery and Relabeling
     
     discovery.kubernetes "pod" {
         role = "pod"
     }
     
-    discovery.relabel "pod_logs" {
+    discovery.relabel "pod" {
       targets = discovery.kubernetes.pod.targets
 
       rule {
@@ -73,8 +71,18 @@ data:
       }
     }
     
+    ///////////////////////////////////////////////////////////////////////////
+    // Loki
+    
+    loki.write "default" {
+      endpoint {
+        url = "http://lgtm.observability.svc.cluster.local:3100/loki/api/v1/push"
+      }
+    }
+    
+    
     loki.source.kubernetes "pod_logs" {
-      targets    = discovery.relabel.pod_logs.output
+      targets    = discovery.relabel.pod.output
       forward_to = [loki.process.pod_logs.receiver]
     }
 
@@ -127,6 +135,9 @@ data:
       }
     }
     
+    ///////////////////////////////////////////////////////////////////////////
+    // Mimir (Prometheus)
+    
     prometheus.remote_write "mimir" {
       endpoint {
         url = "http://mimir.observability:9009/api/v1/push"
@@ -134,8 +145,9 @@ data:
     }
     
     prometheus.scrape "default" {
-      targets = discovery.relabel.pod_logs.output
+      targets = discovery.relabel.pod.output
 
       forward_to = [prometheus.remote_write.mimir.receiver]
 
     }
+    

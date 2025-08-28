@@ -71,15 +71,15 @@ spec:
         - name: PROMETHEUS_LOG_LEVEL
           value: "info"
         - name: ENABLE_LOGS_GRAFANA
-          value: "true"
+          value: "false"
         - name: ENABLE_LOGS_LOKI
-          value: "true"
+          value: "false"
         - name: ENABLE_LOGS_PROMETHEUS
-          value: "true"
+          value: "false"
         - name: ENABLE_LOGS_PYROSCOPE
-          value: "true"
+          value: "false"
         - name: ENABLE_LOGS_TEMPO
-          value: "true"
+          value: "false"
         volumeMounts:
         - name: storage
           mountPath: /var/lib/grafana
