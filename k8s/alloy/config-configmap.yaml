@@ -126,3 +126,16 @@ data:
         }
       }
     }
+    
+    prometheus.remote_write "mimir" {
+      endpoint {
+        url = "http://mimir.observability:9009/api/v1/push"
+      }
+    }
+    
+    prometheus.scrape "default" {
+      targets = discovery.relabel.pod_logs.output
+
+      forward_to = [prometheus.remote_write.mimir.receiver]
+
+    }

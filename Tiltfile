@@ -12,6 +12,9 @@ allow_k8s_contexts('kind-op-bed')
 
 # Load Kubernetes manifests for Grafana LGTM stack
 k8s_yaml([
+    'k8s/mimir/config-configmap.yaml',
+    'k8s/mimir/service.yaml',
+    'k8s/mimir/deployment.yaml',
     'k8s/pyroscope/config-configmap.yaml',
     'k8s/pyroscope/service.yaml',
     'k8s/pyroscope/deployment.yaml',
@@ -24,6 +27,11 @@ k8s_yaml([
 ])
 
 # Configure resources
+k8s_resource('mimir',
+    port_forwards=['9009:9009'],
+    labels=['observability']
+)
+
 k8s_resource('pyroscope',
     port_forwards=['4040:4040'],
     labels=['observability']
@@ -39,13 +47,13 @@ k8s_resource('lgtm',
         '4318:4318'   # OTLP HTTP
     ],
     labels=['observability'],
-    resource_deps=['pyroscope']
+    resource_deps=['mimir', 'pyroscope']
 )
 
 k8s_resource('alloy',
     port_forwards=['12345:12345'],
     labels=['observability'],
-    resource_deps=['lgtm', 'pyroscope']
+    resource_deps=['lgtm', 'mimir', 'pyroscope']
 )
 
 # Include op-hello-world if it exists

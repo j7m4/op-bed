@@ -5,6 +5,11 @@ metadata:
     control-plane: controller-manager
     app.kubernetes.io/name: op-hello-world
     app.kubernetes.io/managed-by: kustomize
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8443"
+    prometheus.io/path: "/metrics"
+    prometheus.io/scheme: "https"
   name: controller-manager-metrics-service
   namespace: system
 spec:

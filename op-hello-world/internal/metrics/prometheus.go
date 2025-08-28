@@ -17,17 +17,7 @@ limitations under the License.
 package metrics
 
 import (
-	"context"
-	"fmt"
-	"os"
-
 	"github.com/prometheus/client_golang/prometheus"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
-	"go.opentelemetry.io/otel/metric"
-	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
-	sdkresource "go.opentelemetry.io/otel/sdk/resource"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 
@@ -98,63 +88,4 @@ func init() {
 		PodCreations,
 		PodCreationErrors,
 	)
-}
-
-// InitMetrics initializes OpenTelemetry metrics
-func InitMetrics(ctx context.Context, serviceName string) (func(context.Context) error, error) {
-	// Get OTLP endpoint from environment or use default
-	endpoint := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
-	if endpoint == "" {
-		endpoint = "localhost:4317"
-	}
-
-	// Create OTLP metrics exporter
-	exporter, err := otlpmetricgrpc.New(
-		ctx,
-		otlpmetricgrpc.WithEndpoint(endpoint),
-		otlpmetricgrpc.WithInsecure(),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("creating OTLP metrics exporter: %w", err)
-	}
-
-	// Create resource with service information
-	resource := sdkresource.NewWithAttributes(
-		"", // Empty schema URL to avoid conflicts
-		attribute.String("service.name", serviceName),
-		attribute.String("service.version", "1.0.0"),
-		attribute.String("environment", getEnvironment()),
-	)
-
-	// Create metrics provider
-	meterProvider := sdkmetric.NewMeterProvider(
-		sdkmetric.WithReader(sdkmetric.NewPeriodicReader(exporter)),
-		sdkmetric.WithResource(resource),
-	)
-
-	// Set global metrics provider
-	otel.SetMeterProvider(meterProvider)
-
-	// Return shutdown function
-	return meterProvider.Shutdown, nil
-}
-
-// GetMeter returns a meter for the given component
-func GetMeter(component string) metric.Meter {
-	return otel.GetMeterProvider().Meter(
-		"github.com/example/op-hello-world",
-		metric.WithInstrumentationVersion("1.0.0"),
-		metric.WithInstrumentationAttributes(
-			attribute.String("component", component),
-		),
-	)
-}
-
-// getEnvironment returns the current environment
-func getEnvironment() string {
-	env := os.Getenv("ENVIRONMENT")
-	if env == "" {
-		env = "development"
-	}
-	return env
 }
