@@ -70,18 +70,10 @@ data:
         replacement = "$1"
       }
     }
+  
     
-    discovery.kubernetes "go_pods" {
-        role = "pod"
-    
-        selectors {
-          role  = "pod"
-          label = "app.kubernetes.io/name=op-hello-world"
-        }
-    }
-    
-    discovery.relabel "go_pods" {
-      targets = discovery.kubernetes.go_pods.targets
+    discovery.relabel "pyro_pods" {
+      targets = discovery.kubernetes.all_pods.targets
 
       rule {
         source_labels = ["__meta_kubernetes_pod_annotation_pyroscope_io_scrape"]
@@ -253,8 +245,8 @@ data:
       }
     }
     
-    pyroscope.scrape "go_pods" {
-      targets = discovery.relabel.go_pods.output
+    pyroscope.scrape "pyro_pods" {
+      targets = discovery.relabel.pyro_pods.output
       forward_to = [pyroscope.write.default.receiver]
     
       profiling_config {
