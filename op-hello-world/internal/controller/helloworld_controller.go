@@ -78,6 +78,12 @@ func (r *HelloWorldReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	)
 	defer span.End()
 
+	// Add trace and span IDs to log context
+	log = log.WithValues(
+		"traceID", span.SpanContext().TraceID().String(),
+		"spanID", span.SpanContext().SpanID().String(),
+	)
+
 	// Start timing the reconciliation
 	start := time.Now()
 	defer func() {

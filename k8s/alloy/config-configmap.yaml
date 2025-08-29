@@ -168,6 +168,24 @@ data:
           }
       }
 
+      // Extract trace context from JSON logs for trace correlation
+      stage.json {
+        expressions = {
+          trace_id = "traceID",
+          span_id = "spanID",
+          level = "level",
+          msg = "msg",
+        }
+      }
+
+      // Add trace context as labels for correlation
+      stage.labels {
+        values = {
+          trace_id = "",
+          span_id = "",
+        }
+      }
+
       forward_to = [loki.write.default.receiver]
     }
     
