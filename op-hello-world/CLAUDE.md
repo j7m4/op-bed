@@ -55,11 +55,26 @@ make vet
 # Install CRDs into cluster
 make install-crd
 
-# Deploy controller to cluster
-make deploy-controller IMG=<your-registry>/op-hello-world:tag
+# Deploy controller to development cluster
+make deploy-development-controller IMG=<your-registry>/op-hello-world:tag
+
+# Deploy controller to production cluster (requires cert-manager)
+make deploy-production-controller IMG=<your-registry>/op-hello-world:tag
+
+# Undeploy development controller
+make undeploy-development-controller
+
+# Undeploy production controller
+make undeploy-production-controller
 
 # Build and push Docker image
 make docker-build docker-push IMG=<your-registry>/op-hello-world:tag
+
+# Build development installer YAML
+make build-development-installer IMG=<your-registry>/op-hello-world:tag
+
+# Build production installer YAML
+make build-installer-production IMG=<your-registry>/op-hello-world:tag
 
 # Install a HelloWorld resource
 make install-resource

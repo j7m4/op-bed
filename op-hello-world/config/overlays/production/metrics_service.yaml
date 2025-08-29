@@ -7,17 +7,17 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
   annotations:
     prometheus.io/scrape: "true"
-    prometheus.io/port: "8080"
+    prometheus.io/port: "8443"
     prometheus.io/path: "/metrics"
-    prometheus.io/scheme: "http"
+    prometheus.io/scheme: "https"
   name: controller-manager-metrics-service
   namespace: system
 spec:
   ports:
-  - name: http
-    port: 8080
+  - name: https
+    port: 8443
     protocol: TCP
-    targetPort: 8080
+    targetPort: 8443
   selector:
     control-plane: controller-manager
     app.kubernetes.io/name: op-hello-world

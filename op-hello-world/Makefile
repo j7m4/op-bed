@@ -45,7 +45,7 @@ help: ## Display this help.
 
 .PHONY: manifests
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
-	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="./..." output:crd:artifacts:config=config/base/crd/bases
 
 .PHONY: generate
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
@@ -131,8 +131,8 @@ kind-load-image: docker-build ## Build and load docker image into Kind cluster.
 
 .PHONY: deploy-controller-kind
 deploy-controller-kind: manifests kustomize kind-load-image ## Build, load to Kind, and deploy controller.
-	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	$(KUSTOMIZE) build config/default | $(KUBECTL) apply -f -
+	cd config/base/manager && $(KUSTOMIZE) edit set image controller=${IMG}
+	$(KUSTOMIZE) build config/overlays/development | $(KUBECTL) apply -f -
 
 # PLATFORMS defines the target platforms for the manager image be built to provide support to multiple
 # architectures. (i.e. make docker-buildx IMG=myregistry/mypoperator:0.0.1). To use this option you need to:
@@ -151,11 +151,11 @@ docker-buildx: ## Build and push docker image for the manager for cross-platform
 	- $(CONTAINER_TOOL) buildx rm op-hello-world-builder
 	rm Dockerfile.cross
 
-.PHONY: build-installer
-build-installer: manifests generate kustomize ## Generate a consolidated YAML with CRDs and deployment.
+.PHONY: build-development-installer
+build-development-installer: manifests generate kustomize ## Generate a consolidated YAML with CRDs and deployment.
 	mkdir -p dist
-	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	$(KUSTOMIZE) build config/default > dist/install.yaml
+	cd config/base/manager && $(KUSTOMIZE) edit set image controller=${IMG}
+	$(KUSTOMIZE) build config/overlays/development > dist/install.yaml
 
 ##@ Deployment
 
@@ -165,31 +165,48 @@ endif
 
 .PHONY: install-crd
 install-crd: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/crd | $(KUBECTL) apply -f -
+	$(KUSTOMIZE) build config/base/crd | $(KUBECTL) apply -f -
 
 .PHONY: uninstall-crd
 uninstall-crd: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
-	$(KUSTOMIZE) build config/crd | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
+	$(KUSTOMIZE) build config/base/crd | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
 
 # Resource installation variables
-RESOURCE_PATH ?= config/samples/apps_v1_helloworld.yaml
+RESOURCE_PATH ?= config/base/samples/apps_v1_helloworld.yaml
 
 .PHONY: install-resource
-install-resource: ## Install a HelloWorld resource. Use RESOURCE_PATH to specify custom path (default: config/samples/apps_v1_helloworld.yaml)
+install-resource: ## Install a HelloWorld resource. Use RESOURCE_PATH to specify custom path (default: config/base/samples/apps_v1_helloworld.yaml)
 	$(KUBECTL) apply -f $(RESOURCE_PATH)
 
 .PHONY: uninstall-resource
-uninstall-resource: ## Uninstall a HelloWorld resource. Use RESOURCE_PATH to specify custom path (default: config/samples/apps_v1_helloworld.yaml)
+uninstall-resource: ## Uninstall a HelloWorld resource. Use RESOURCE_PATH to specify custom path (default: config/base/samples/apps_v1_helloworld.yaml)
 	$(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f $(RESOURCE_PATH)
 
-.PHONY: deploy-controller
-deploy-controller: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
-	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	$(KUSTOMIZE) build config/default | $(KUBECTL) apply -f -
+.PHONY: deploy-development-controller
+deploy-development-controller: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
+	cd config/base/manager && $(KUSTOMIZE) edit set image controller=${IMG}
+	$(KUSTOMIZE) build config/overlays/development | $(KUBECTL) apply -f -
 
-.PHONY: undeploy-controller
-undeploy-controller: kustomize ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
-	$(KUSTOMIZE) build config/default | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
+.PHONY: undeploy-development-controller
+undeploy-development-controller: kustomize ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
+	$(KUSTOMIZE) build config/overlays/development | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
+
+##@ Production Deployment
+
+.PHONY: deploy-production-controller
+deploy-production-controller: manifests kustomize ## Deploy controller to production environment with TLS and full security.
+	cd config/base/manager && $(KUSTOMIZE) edit set image controller=${IMG}
+	$(KUSTOMIZE) build config/overlays/production | $(KUBECTL) apply -f -
+
+.PHONY: undeploy-production-controller
+undeploy-production-controller: kustomize ## Undeploy production controller. Call with ignore-not-found=true to ignore resource not found errors during deletion.
+	$(KUSTOMIZE) build config/overlays/production | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
+
+.PHONY: build-installer-production
+build-installer-production: manifests generate kustomize ## Generate a consolidated YAML with CRDs and production deployment.
+	mkdir -p dist
+	cd config/base/manager && $(KUSTOMIZE) edit set image controller=${IMG}
+	$(KUSTOMIZE) build config/overlays/production > dist/install-production.yaml
 
 
 ##@ Dependencies

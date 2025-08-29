@@ -1,0 +1,19 @@
+# Development overlay - insecure metrics, minimal RBAC, no TLS
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+- ../../base
+- metrics_service.yaml
+
+patches:
+# Configure insecure HTTP metrics on port 8080
+- path: manager_metrics_patch.yaml
+  target:
+    kind: Deployment
+    name: controller-manager
+
+images:
+- name: controller
+  newName: ghcr.io/j7m4/op-hello-world
+  newTag: latest

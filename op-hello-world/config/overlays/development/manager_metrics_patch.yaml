@@ -1,0 +1,4 @@
+# Development: Configure insecure HTTP metrics on port 8080
+- op: add
+  path: /spec/template/spec/containers/0/args/0
+  value: --metrics-bind-address=:8080 --metrics-secure=false --pprof-bind-address=:6060

@@ -1,5 +1,9 @@
-# This patch adds the args, volumes, and ports to allow the manager to use the metrics-server certs.
+# Production: Configure secure HTTPS metrics with TLS certificates
 
+# Configure secure metrics on port 8443
+- op: add
+  path: /spec/template/spec/containers/0/args/0
+  value: --metrics-bind-address=:8443 --metrics-secure=true --pprof-bind-address=:6060
 
 # Add the volumeMount for the metrics-server certs
 - op: add

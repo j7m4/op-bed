@@ -1,0 +1,86 @@
+# Production overlay - secure TLS metrics, full RBAC, NetworkPolicy
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+- ../../base
+- ../../base/rbac/production
+- metrics_service.yaml
+- servicemonitor.yaml
+- certificate.yaml
+- issuer.yaml
+- network-policy
+
+patches:
+# Configure secure HTTPS metrics with TLS certificates
+- path: manager_metrics_patch.yaml
+  target:
+    kind: Deployment
+    name: controller-manager
+
+images:
+- name: controller
+  newName: ghcr.io/j7m4/op-hello-world
+  newTag: latest
+
+# Replacements for cert-manager integration
+replacements:
+- source:
+    kind: Service
+    version: v1
+    name: controller-manager-metrics-service
+    fieldPath: metadata.name
+  targets:
+    - select:
+        kind: Certificate
+        group: cert-manager.io
+        version: v1
+        name: metrics-certs
+      fieldPaths:
+        - spec.dnsNames.0
+        - spec.dnsNames.1
+      options:
+        delimiter: '.'
+        index: 0
+        create: true
+    - select:
+        kind: ServiceMonitor
+        group: monitoring.coreos.com
+        version: v1
+        name: controller-manager-metrics-monitor
+      fieldPaths:
+        - spec.endpoints.0.tlsConfig.serverName
+      options:
+        delimiter: '.'
+        index: 0
+        create: true
+
+- source:
+    kind: Service
+    version: v1
+    name: controller-manager-metrics-service
+    fieldPath: metadata.namespace
+  targets:
+    - select:
+        kind: Certificate
+        group: cert-manager.io
+        version: v1
+        name: metrics-certs
+      fieldPaths:
+        - spec.dnsNames.0
+        - spec.dnsNames.1
+      options:
+        delimiter: '.'
+        index: 1
+        create: true
+    - select:
+        kind: ServiceMonitor
+        group: monitoring.coreos.com
+        version: v1
+        name: controller-manager-metrics-monitor
+      fieldPaths:
+        - spec.endpoints.0.tlsConfig.serverName
+      options:
+        delimiter: '.'
+        index: 1
+        create: true

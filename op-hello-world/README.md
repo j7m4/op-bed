@@ -107,7 +107,7 @@ make install-crd
 **Deploy the Manager to the cluster with the image specified by `IMG`:**
 
 ```sh
-make deploy-controller IMG=<some-registry>/op-hello-world:tag
+make deploy-development-controller IMG=<some-registry>/op-hello-world:tag
 ```
 
 > **NOTE**: If you encounter RBAC errors, you may need to grant yourself cluster-admin
@@ -146,7 +146,7 @@ make uninstall-crd
 **UnDeploy the controller from the cluster:**
 
 ```sh
-make undeploy-controller
+make undeploy-development-controller
 ```
 
 ## Project Distribution
@@ -158,7 +158,7 @@ Following the options to release and provide this solution to the users.
 1. Build the installer for the image built and published in the registry:
 
 ```sh
-make build-installer IMG=<some-registry>/op-hello-world:tag
+make build-development-installer IMG=<some-registry>/op-hello-world:tag
 ```
 
 **NOTE:** The makefile target mentioned above generates an 'install.yaml'

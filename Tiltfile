@@ -96,7 +96,7 @@ if os.path.exists('op-hello-world'):
     local_resource(
         'deploy-controller-ohw',
         cmd="""
-        make -C op-hello-world deploy-controller
+        make -C op-hello-world deploy-development-controller
         echo "Controller deployed"
         tilt trigger install-resource-ohw
         """,
@@ -106,7 +106,7 @@ if os.path.exists('op-hello-world'):
 
     local_resource(
         'undeploy-controller-ohw',
-        'make -C op-hello-world undeploy-controller; echo "Controller undeployed"',
+        'make -C op-hello-world undeploy-development-controller; echo "Controller undeployed"',
         labels=['op-hello-world'],
         trigger_mode=TRIGGER_MODE_MANUAL,
         auto_init=False

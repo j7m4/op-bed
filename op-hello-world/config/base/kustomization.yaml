@@ -1,0 +1,15 @@
+# Base configuration for op-hello-world operator
+# Contains common resources shared between development and production
+
+# Adds namespace to all resources.
+namespace: op-hello-world-system
+
+# Value of this field is prepended to the
+# names of all resources
+namePrefix: op-hello-world-
+
+resources:
+- crd
+- rbac/base
+- manager
+- samples

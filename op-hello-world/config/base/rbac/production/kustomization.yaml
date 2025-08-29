@@ -1,0 +1,8 @@
+resources:
+# Production-specific RBAC for metrics authentication and authorization
+- metrics_auth_role.yaml
+- metrics_auth_role_binding.yaml
+- metrics_reader_role.yaml
+# RBAC for reading container registry secrets
+- secret_reader_role.yaml
+- secret_reader_role_binding.yaml
