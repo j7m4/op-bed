@@ -285,7 +285,7 @@ data:
     
     otelcol.exporter.otlp "lgtm" {
       client {
-        endpoint = "lgtm.observability.observability.svc.cluster.local:4317"
+        endpoint = "lgtm.observability.svc.cluster.local:4317"
       }
     }
 
